@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080808"><title>AmazonDrive — Mapa claro e rota azul</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#080808;--panel:#151515;--line:#292929;--lime:#A8F02A;--white:#fff;--muted:#a7a7a7}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--white);font-family:system-ui,Arial,sans-serif}button,input{font:inherit}button{cursor:pointer}.app{max-width:520px;min-height:100vh;margin:auto;padding:18px 16px 26px}.top{display:flex;align-items:center;justify-content:space-between;padding:5px 0 22px}.brand{display:flex;align-items:center;gap:10px}.mark{width:43px;height:43px;border-radius:14px;background:var(--lime);display:grid;place-items:center;color:#080808;font-size:25px;font-weight:950}.brandname{font-weight:850;font-size:22px}.brandname span{color:var(--lime)}.pill{border:1px solid #333;color:#bbb;border-radius:30px;padding:7px 9px;font-size:10px}.screen{display:none}.screen.active{display:block}.hero{padding:20px 2px 24px}.eyebrow{color:var(--lime);font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase}h1{font-size:35px;line-height:1.06;margin:12px 0}.hero p,.sub{color:var(--muted);line-height:1.55}.choice{display:grid;gap:13px;margin:10px 0 22px}.card{border-radius:22px;padding:18px;text-align:left;display:flex;align-items:center;gap:14px;width:100%;border:1px solid var(--line)}.primary{background:var(--lime);color:#080808;border-color:var(--lime)}.secondary{background:#151515;color:white;border-color:#3a3a3a}.cardIcon{width:51px;height:51px;border-radius:16px;background:#252525;display:grid;place-items:center;flex-shrink:0;font-size:23px}.card h2{font-size:16px;margin:0 0 5px}.card p{font-size:12px;margin:0;opacity:.72}.arrow{margin-left:auto;font-size:24px}.note{border:1px solid #242424;background:#101010;border-radius:17px;padding:14px;color:#999;font-size:12px;line-height:1.5}.back{background:transparent;border:0;color:var(--lime);padding:5px 0 18px;font-weight:700}.section{font-size:27px;margin:6px 0 8px}.sub{font-size:13px;margin-bottom:16px}.field{display:block;margin:12px 0}.field span{display:block;font-size:11px;color:#b8b8b8;margin:0 0 7px;letter-spacing:.5px}.field input{width:100%;background:#151515;border:1px solid #343434;border-radius:12px;padding:14px;color:#fff;outline:none}.field input:focus{border-color:var(--lime)}
+.field{position:relative}
+.suggestions{display:none;position:relative;z-index:1200;margin-top:5px;border:1px solid #3b3b3b;border-radius:12px;background:#171717;overflow:hidden;box-shadow:0 10px 24px #0008}
+.suggestions.show{display:block}
+.suggestion{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #303030;background:#171717;color:#fff;padding:12px;font-size:13px;line-height:1.4}
+.suggestion:last-child{border-bottom:0}
+.suggestion:active,.suggestion:focus{background:#27351a;outline:1px solid var(--lime)}
+.suggestion small{display:block;color:#aaa;font-size:11px;margin-top:4px}
+.suggestion .cep{color:var(--lime)}
+/* Tela de corrida com mapa amplo e painel inferior, inspirada em apps de mobilidade */
+.ride-screen{position:relative;margin:0 -16px;min-height:calc(100vh - 78px);overflow:hidden}
+.ride-map-area{position:relative;height:58vh;min-height:360px;background:#1c251c}
+.ride-map-top{position:absolute;z-index:700;top:12px;left:14px;right:14px;display:flex;align-items:center;gap:10px;pointer-events:none}
+.ride-map-top>*{pointer-events:auto}
+.ride-map-top>div{background:#111e;border:1px solid #333;border-radius:14px;padding:8px 12px;display:flex;flex-direction:column;flex:1;box-shadow:0 4px 16px #0005}
+.ride-map-top strong{font-size:16px}.ride-map-top strong span{color:var(--lime)}
+.ride-map-top small{font-size:10px;color:#bbb;margin-top:2px}
+.map-back,.map-location{width:43px;height:43px;border-radius:14px;border:1px solid #444;background:#151515ed;color:var(--lime);font-size:27px;display:grid;place-items:center;box-shadow:0 4px 16px #0005}
+.map-location{font-size:22px}
+.ride-mapbox{position:absolute;inset:0;margin:0;border:0;border-radius:0;overflow:hidden}
+.ride-mapbox .maptitle{display:none}
+.ride-mapbox #map{height:100%;width:100%;border-radius:0}
+.route-info{display:none;position:absolute;z-index:650;left:14px;top:68px;background:#101d12ed;border:1px solid #47752b;color:#eaffd8;border-radius:13px;padding:9px 12px;box-shadow:0 4px 16px #0005;font-size:12px;max-width:75%}.route-info.show{display:block}.route-info strong{color:var(--lime);font-size:14px}.map-hint{position:absolute;z-index:600;bottom:12px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#111e;border:1px solid #3b3b3b;border-radius:20px;padding:8px 12px;font-size:10px;color:#eee;box-shadow:0 4px 14px #0005}
+.ride-panel{position:relative;z-index:800;margin-top:-2px;background:#101010;border:1px solid #292929;border-radius:24px 24px 0 0;padding:10px 16px 20px;box-shadow:0 -8px 28px #0004}
+.panel-handle{width:42px;height:4px;border-radius:5px;background:#555;margin:0 auto 13px}
+.ride-panel .section{font-size:24px;margin:6px 0 12px}
+.ride-panel .field{margin:10px 0}
+.ride-panel .field span{color:#d2d2d2;font-size:10px}
+.ride-panel .field input{padding:12px 13px;background:#191919}
+.ride-panel .action{margin-top:7px}
+.ride-footnote{text-align:center;font-size:9px;color:#666;margin:12px 0 0}
+@media(min-width:600px){.ride-screen{max-width:520px;margin:0 auto}.ride-map-area{height:58vh;min-height:380px}}
+.action{width:100%;background:var(--lime);border:0;color:#080808;font-weight:850;border-radius:14px;padding:15px;margin-top:10px}.secondaryAction{width:100%;background:#181818;border:1px solid #333;color:white;font-weight:700;border-radius:14px;padding:13px;margin-top:9px}.status{white-space:pre-line;display:none;background:#13200c;color:#d5ffad;border:1px solid #385b20;padding:13px;border-radius:13px;margin-top:13px;font-size:12px;line-height:1.5}.status.show{display:block}.onlineCard{border:1px solid #333;background:#141414;border-radius:20px;padding:16px;margin:16px 0}.onlineHead{display:flex;align-items:center;gap:10px}.dot{width:11px;height:11px;background:#777;border-radius:50%}.dot.on{background:#5cff77;box-shadow:0 0 12px #5cff7777}.small{color:#aaa;font-size:12px;line-height:1.5;margin-top:9px}#map{height:265px;width:100%;background:#202520;border-radius:18px;overflow:hidden}.mapbox{margin:14px 0;border:1px solid #333;border-radius:18px;overflow:hidden}.maptitle{padding:11px 13px;background:#141414;color:#ddd;font-size:12px}.maptitle strong{color:var(--lime)}.requests-list{display:grid;gap:12px;margin:12px 0}.request-card{background:#151515;border:1px solid #3b3b3b;border-radius:16px;padding:15px}.request-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.request-status{font-size:11px;color:var(--lime);font-weight:800}.request-route{display:grid;gap:9px;margin:14px 0}.request-route strong{display:block;font-size:13px;overflow-wrap:anywhere}.request-actions{display:flex;gap:8px}.request-actions button{flex:1;margin-top:0}.request-muted{color:#aaa;font-size:12px;line-height:1.5;padding:13px;border:1px dashed #444;border-radius:13px}.profile-btn{border:1px solid #343434;background:#171717;color:#fff;border-radius:13px;padding:10px 12px;font-size:12px;font-weight:750}.profile-btn span{color:var(--lime)}
+
+.confirm-screen{padding:4px 0 20px}.confirm-car{display:flex;align-items:center;gap:12px;background:#171717;border:1px solid #3b4b2b;border-radius:20px;padding:15px;margin:18px 0}.confirm-car-icon{width:60px;height:60px;border-radius:17px;background:#252a20;display:grid;place-items:center;font-size:31px}.confirm-car-copy{flex:1}.confirm-car-copy strong{display:block;font-size:16px}.confirm-car-copy small{display:block;color:#aaa;font-size:11px;margin-top:4px}.confirm-price{color:var(--lime);font-weight:900;font-size:17px;white-space:nowrap}.confirm-route{background:#141414;border:1px solid #303030;border-radius:18px;padding:17px;margin:14px 0}.route-line{display:flex;gap:12px;align-items:flex-start}.route-line>div{min-width:0}.route-line small,.confirm-stats small{display:block;color:#999;font-size:9px;letter-spacing:.8px;margin-bottom:5px}.route-line strong{display:block;font-size:13px;line-height:1.4;overflow-wrap:anywhere}.route-dot{width:12px;height:12px;border-radius:50%;margin:2px 0 0 2px;flex-shrink:0}.origin-dot{background:#21a366;box-shadow:0 0 0 4px #21a36622}.destination-dot{background:#f28c28;box-shadow:0 0 0 4px #f28c2822}.route-connector{height:22px;border-left:2px dashed #4d4d4d;margin:5px 0 5px 7px}.confirm-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.confirm-stats>div{padding:14px;background:#171717;border:1px solid #303030;border-radius:15px}.confirm-stats strong{font-size:16px;color:#fff}
+
+.fare-title{font-size:16px;margin:18px 0 10px}.fare-list{display:grid;gap:9px}.fare-option{display:flex;align-items:center;gap:11px;border:1px solid #343434;background:#171717;border-radius:16px;padding:12px;color:#fff;text-align:left;width:100%}.fare-option.selected{border:2px solid var(--lime);background:#1b2414;padding:11px}.fare-icon{width:44px;height:44px;border-radius:13px;background:#292929;display:grid;place-items:center;font-size:23px;flex-shrink:0}.fare-copy{flex:1}.fare-copy strong{display:block;font-size:14px}.fare-copy small{display:block;color:#aaa;font-size:10px;line-height:1.4;margin-top:3px}.fare-price{font-weight:850;font-size:15px;white-space:nowrap}.fare-price small{display:block;font-size:9px;color:#aaa;text-align:right;font-weight:500}.register-hero{background:linear-gradient(145deg,#202b15,#101010 70%);border:1px solid #344624;border-radius:24px;padding:20px;margin:10px 0 20px}.register-logo{width:58px;height:58px;border-radius:19px;background:var(--lime);color:#080808;display:grid;place-items:center;font-size:30px;font-weight:950;box-shadow:0 8px 28px #a8f02a22}.register-hero h2{font-size:28px;line-height:1.08;margin:16px 0 8px}.register-hero p{font-size:12px;color:#c0c7b9;line-height:1.5;margin:0}.form-grid{display:grid;grid-template-columns:1fr;gap:2px}.field input:focus{box-shadow:0 0 0 3px #a8f02a18}.terms{display:flex;gap:9px;align-items:flex-start;color:#aaa;font-size:11px;line-height:1.5;margin:15px 0}.terms input{accent-color:var(--lime);margin-top:2px}.bottom{text-align:center;padding-top:25px;color:#666;font-size:10px;letter-spacing:1.2px}.leaflet-control-attribution{font-size:9px!important}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#fff;color:#18212b}
+/* Entrada e identidade visual AmazonDrive */
+.welcome-screen{display:none;min-height:calc(100vh - 44px);flex-direction:column;justify-content:space-between;padding:12px 2px 18px}
+.welcome-screen.active{display:flex}
+.welcome-top{display:flex;align-items:center;justify-content:space-between;color:#aaa;font-size:11px;letter-spacing:1.5px}
+.welcome-center{text-align:center;padding:38px 8px 45px}
+.splash-mark{width:112px;height:112px;margin:0 auto 23px;border-radius:34px;background:var(--lime);display:grid;place-items:center;box-shadow:0 14px 45px #a8f02a20;position:relative;overflow:hidden}
+.splash-mark svg{width:76px;height:76px}
+.splash-name{font-size:35px;font-weight:900;letter-spacing:-1.8px;margin:0}.splash-name span{color:var(--lime)}
+.splash-tag{color:#b6b6b6;font-size:14px;margin-top:12px;line-height:1.5}
+.welcome-actions{display:grid;gap:11px}.welcome-actions .action{padding:17px;border-radius:15px;font-size:15px;margin:0}
+.welcome-actions .secondaryAction{padding:16px;border-radius:15px;margin:0}
+.welcome-foot{text-align:center;color:#666;font-size:10px;letter-spacing:1.3px;margin-top:20px}
+.login-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;background:#111;border:1px solid #292929;padding:5px;border-radius:14px;margin:14px 0 20px}
+.login-tabs button{border:0;border-radius:10px;padding:11px;background:transparent;color:#aaa;font-weight:750}.login-tabs button.active{background:var(--lime);color:#080808}
+
+
+/* Acabamento visual: mapa claro e discreto, rota verde fina e controles modernos */
+.ride-map-area{border:1px solid #303530;box-shadow:0 12px 32px #0007;overflow:hidden}
+#rideMap{background:#e9ece8}
+.leaflet-control-zoom{border:0!important;box-shadow:0 5px 18px #0002!important}
+.leaflet-control-zoom a{background:#fff!important;color:#1677FF!important;border:1px solid #d9e1e8!important}
+.leaflet-control-attribution{background:#ffffffb8!important;color:#4d554b!important;font-size:9px!important}
+.route-info{background:#101510f2;border:1px solid #45652d;border-radius:15px;padding:11px 14px;box-shadow:0 8px 22px #0004;font-size:12px}
+.map-hint{background:#101510ed!important;color:#e7f4df!important;border:1px solid #384331!important;border-radius:20px!important;box-shadow:0 6px 18px #0004!important;padding:8px 13px!important}
+.ride-map-header{box-shadow:0 7px 22px #0004}
+</style></head><body><main class="app"><section id="welcome" class="screen welcome-screen active"><div class="welcome-top"><span>AMAZONDRIVE</span><span>MANAUS • AM</span></div><div class="welcome-center"><div class="splash-mark" aria-label="Logo AmazonDrive"><svg viewBox="0 0 100 100" role="img" aria-label="A estilizado"><path d="M17 76 L43 20 Q47 11 53 20 L82 76 L64 76 L49 43 L34 76 Z" fill="#080808"/><path d="M25 63 L74 63 L82 76 L20 76 Z" fill="#080808"/><path d="M40 84 Q58 92 77 80" fill="none" stroke="#080808" stroke-width="6" stroke-linecap="round"/><path d="M69 78 L79 79 L75 88" fill="none" stroke="#080808" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h1 class="splash-name">Amazon<span>Drive</span></h1><p class="splash-tag">Sua cidade. Seu caminho.<br>Mobilidade do seu jeito.</p></div><div><div class="welcome-actions"><button class="action" onclick="openScreen('login')">Entrar</button><button class="secondaryAction" onclick="openScreen('register')">Criar conta</button><button class="secondaryAction" onclick="openScreen('driver')">🏍️ Sou motorista</button><button class="secondaryAction" onclick="openScreen('cloudSetup')">🌐 Conectar celulares</button></div><div class="welcome-foot">SIMPLES · PRÁTICO · AMAZONAS</div></div></section><header class="top"><div class="brand"><div class="mark">A</div><div class="brandname">Amazon<span>Drive</span></div></div><div style="display:flex;align-items:center;gap:8px"><div class="pill">MANAUS • AM</div><button class="profile-btn" onclick="openScreen('register')">♙ <span>Entrar</span></button></div></header>
+<section id="home" class="screen"><div class="hero"><div class="eyebrow">Sua cidade. Seu caminho.</div><h1>Pra onde<br>vamos hoje?</h1><p>Uma nova forma de se movimentar por Manaus, com praticidade e confiança.</p></div><div class="choice"><button class="card primary" onclick="openScreen('passenger')"><div class="cardIcon">🚘</div><div><h2>Quero pedir uma corrida</h2><p>Encontre sua próxima viagem</p></div><div class="arrow">›</div></button><button class="card secondary" onclick="openScreen('driver')"><div class="cardIcon">♙</div><div><h2>Sou motorista</h2><p>Acesse a área do motorista</p></div><div class="arrow">›</div></button></div><button class="card secondary" onclick="openScreen('register')"><div class="cardIcon">✨</div><div><h2>Crie sua conta</h2><p>Cadastre-se para começar</p></div><div class="arrow">›</div></button><div class="note">🔒 Versão em desenvolvimento. A rota é estimada; motoristas ainda não são compartilhados entre celulares.</div></section>
+<section id="passenger" class="screen ride-screen">
+  <div class="ride-map-area">
+    <div class="ride-map-top"><button class="map-back" onclick="openScreen('home')" aria-label="Voltar">‹</button><div><strong>Amazon<span>Drive</span></strong><small>Manaus • AM</small></div><button class="map-location" onclick="locateMe()" aria-label="Minha localização">◎</button></div>
+    <div class="mapbox ride-mapbox"><div class="maptitle"><strong>MAPA AO VIVO</strong> · Manaus, Amazonas</div><div id="map"></div></div>
+    <div id="routeInfo" class="route-info"></div><div class="map-hint">Mapa de ruas · estilo navegação</div>
+  </div>
+  <div class="ride-panel">
+    <div class="panel-handle"></div>
+    <div class="eyebrow">Área do passageiro</div>
+    <h2 class="section">Para onde vamos?</h2>
+    <label class="field"><span>● LOCAL DE PARTIDA</span><input id="origin" placeholder="Digite rua, bairro ou CEP" autocomplete="off" aria-label="Local de partida"><div class="suggestions" id="originSuggestions"></div></label>
+    <label class="field"><span>● DESTINO</span><input id="destination" placeholder="Digite rua, bairro ou CEP" autocomplete="off" aria-label="Destino"><div class="suggestions" id="destinationSuggestions"></div></label>
+    <h3 class="fare-title">Escolha sua categoria</h3>
+    <div id="fareOptions" class="fare-list">
+      <button type="button" class="fare-option selected" data-fare="economy" onclick="selectFare('economy')"><span class="fare-icon">🚗</span><span class="fare-copy"><strong>Amazon Econômico</strong><small>Mais em conta para o dia a dia</small></span><span class="fare-price" id="priceEconomy">—<small>estimativa</small></span></button>
+      <button type="button" class="fare-option" data-fare="comfort" onclick="selectFare('comfort')"><span class="fare-icon">🚘</span><span class="fare-copy"><strong>Amazon Conforto</strong><small>Mais conforto na viagem</small></span><span class="fare-price" id="priceComfort">—<small>estimativa</small></span></button>
+      <button type="button" class="fare-option" data-fare="moto" onclick="selectFare('moto')"><span class="fare-icon">🏍️</span><span class="fare-copy"><strong>Amazon Moto</strong><small>Uma opção ágil para trajetos curtos</small></span><span class="fare-price" id="priceMoto">—<small>estimativa</small></span></button>
+    </div>
+    <button class="action" onclick="requestRide()">Confirmar categoria →</button>
+    <div id="rideStatus" class="status"></div>
+    <p class="ride-footnote">OpenStreetMap · rota estimada, sem trânsito ao vivo</p>
+  </div>
+</section>
+
+<section id="rideConfirm" class="screen confirm-screen">
+  <button class="back" onclick="openScreen('passenger')">← Voltar para escolher</button>
+  <div class="eyebrow">Quase lá</div>
+  <h2 class="section">Confirme sua corrida</h2>
+  <p class="sub">Confira os detalhes antes de enviar seu pedido.</p>
+  <div class="confirm-car"><div class="confirm-car-icon" id="confirmVehicleIcon">🚗</div><div class="confirm-car-copy"><strong id="confirmFareName">Amazon Econômico</strong><small id="confirmFareDesc">Sua viagem, do seu jeito</small></div><div class="confirm-price" id="confirmFarePrice">R$ —</div></div>
+  <div class="confirm-route"><div class="route-line"><span class="route-dot origin-dot"></span><div><small>LOCAL DE PARTIDA</small><strong id="confirmOrigin">—</strong></div></div><div class="route-connector"></div><div class="route-line"><span class="route-dot destination-dot"></span><div><small>DESTINO</small><strong id="confirmDestination">—</strong></div></div></div>
+  <div class="confirm-stats"><div><small>DISTÂNCIA ESTIMADA</small><strong id="confirmDistance">— km</strong></div><div><small>TEMPO ESTIMADO</small><strong id="confirmDuration">— min</strong></div></div>
+  <div class="note" style="margin-top:14px">O valor é estimado. Este protótipo cria o pedido neste navegador para testar o fluxo; ainda não envia para outros celulares.</div>
+  <button class="action" onclick="confirmRideDemo()">Confirmar pedido de corrida →</button>
+  <button class="secondaryAction" onclick="openScreen('passenger')">Alterar categoria ou destino</button>
+  <div id="confirmRideStatus" class="status"></div>
+</section>
+
+<section id="login" class="screen"><button class="back" onclick="openScreen('welcome')">← Voltar</button><div class="register-hero"><div class="register-logo">A</div><div class="eyebrow" style="margin-top:16px">Bem-vindo de volta</div><h2>Entre no AmazonDrive.</h2><p>Acesse seu perfil para continuar sua experiência.</p></div><div class="login-tabs"><button class="active" type="button">Entrar</button><button type="button" onclick="openScreen('register')">Criar conta</button></div><form onsubmit="loginDemo(event)"><label class="field"><span>CELULAR OU E-MAIL</span><input id="loginIdentity" autocomplete="username" placeholder="Seu celular ou e-mail" required></label><label class="field"><span>SENHA</span><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha" required></label><button class="action" type="submit">Entrar na minha conta →</button></form><div id="loginStatus" class="status"></div><div class="note" style="margin-top:14px">Login demonstrativo neste aparelho. Não use uma senha que você já utiliza em outros serviços.</div></section>
+<section id="register" class="screen"><button class="back" onclick="openScreen('welcome')">← Voltar</button><div class="register-hero"><div class="register-logo">A</div><div class="eyebrow" style="margin-top:16px">Bem-vindo ao AmazonDrive</div><h2>Sua próxima viagem começa com você.</h2><p>Crie seu perfil com um visual moderno e simples. Preencha seus dados para testar o cadastro.</p></div><div class="eyebrow">Cadastro do passageiro</div><h2 class="section">Criar conta</h2><p class="sub">Seu perfil de teste fica salvo neste aparelho. Ainda não existe conta online.</p><form id="registerForm" onsubmit="registerUser(event)"><div class="form-grid"><label class="field"><span>NOME COMPLETO</span><input id="userName" autocomplete="name" placeholder="Como podemos te chamar?" required minlength="2"></label><label class="field"><span>CELULAR COM DDD</span><input id="userPhone" type="tel" autocomplete="tel" placeholder="(92) 99999-9999" required></label><label class="field"><span>E-MAIL (OPCIONAL)</span><input id="userEmail" type="email" autocomplete="email" placeholder="voce@email.com"></label><label class="field"><span>CRIAR SENHA</span><input id="userPassword" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres" minlength="6" required></label></div><label class="terms"><input id="userTerms" type="checkbox" required><span>Concordo em usar estes dados apenas para testar o protótipo. Este formulário ainda não cria uma conta online real.</span></label><button class="action" type="submit">Criar meu perfil →</button></form><div id="registerStatus" class="status"></div><div class="note" style="margin-top:14px">🔐 Demonstração local: os dados ficam neste navegador e não são sincronizados com outros celulares. Não use senha importante.</div></section>
+<section id="driver" class="screen"><button class="back" onclick="openScreen('welcome')">← Voltar ao início</button><div class="eyebrow">Área do motorista</div><h2 class="section">Cadastre-se para dirigir.</h2><p class="sub">Preencha seus dados para acessar o painel do motorista.</p><label class="field"><span>NOME DO MOTORISTA</span><input id="driverName" placeholder="Seu nome"></label><label class="field"><span>TELEFONE</span><input id="driverPhone" type="tel" placeholder="(92) 99999-9999"></label><label class="field"><span>TIPO DE VEÍCULO</span><select id="driverVehicleType" style="width:100%;background:#151515;border:1px solid #343434;border-radius:12px;padding:14px;color:#fff"><option value="Carro">🚗 Carro</option><option value="Moto">🏍️ Moto</option></select></label><label class="field"><span>MODELO DO VEÍCULO</span><input id="vehicle" placeholder="Ex.: Chevrolet Onix"></label><label class="field"><span>PLACA DO VEÍCULO (OPCIONAL NESTE TESTE)</span><input id="driverPlate" placeholder="ABC1D23" maxlength="7" autocapitalize="characters"></label><label class="field"><span>COR DO VEÍCULO</span><input id="driverColor" placeholder="Ex.: branco"></label><button class="action" type="button" onclick="saveDriverProfile()">Salvar cadastro e continuar →</button><div id="driverStatus" class="status"></div><div class="note">🔐 Demonstração local: os dados ficam salvos neste navegador. Ainda não há verificação de documentos nem conexão com corridas reais.</div></section>
+<section id="driverDashboard" class="screen"><button class="back" onclick="openScreen('driver')">← Editar cadastro</button><div class="eyebrow">Painel do motorista</div><h2 class="section">Olá, <span id="dashDriverName" style="color:var(--lime)">motorista</span>!</h2><p class="sub">Seu painel de trabalho no AmazonDrive.</p><div class="onlineCard"><div class="onlineHead"><span id="dashOnlineDot" class="dot"></span><div><strong id="dashOnlineTitle">Você está offline</strong><div class="small" style="margin:2px 0 0">Disponibilidade neste aparelho</div></div></div><button id="dashOnlineBtn" class="action" onclick="toggleOnline()">Ficar online</button><div id="dashDriverStatus" class="status"></div></div><div class="card secondary" style="margin:12px 0;cursor:default"><div class="cardIcon">🚘</div><div><h2 id="dashVehicle">Seu veículo</h2><p id="dashVehicleDetails">Dados do cadastro</p></div></div><div class="onlineCard" style="margin-top:14px"><div class="eyebrow">Comissão inicial</div><h3 style="margin:6px 0 8px">AmazonDrive recebe 10%</h3><p class="small" style="margin:0 0 12px">Carro: 10% · Moto: 10%. O motorista fica com 90% do valor da corrida, antes de outros custos.</p><label class="field"><span>SIMULAR VALOR DA CORRIDA (R$)</span><input id="commissionFare" type="number" min="0" step="0.01" placeholder="Ex.: 20,00" oninput="calculateCommission()"></label><div style="display:flex;justify-content:space-between;gap:10px;margin:10px 0"><span class="small">Comissão do app</span><strong id="commissionApp">R$ 0,00</strong></div><div style="display:flex;justify-content:space-between;gap:10px"><span class="small">Motorista recebe</span><strong id="commissionDriver" style="color:var(--lime)">R$ 0,00</strong></div><div class="note" style="margin-top:12px">Configuração inicial de demonstração. Ainda não há cobrança nem repasse real.</div></div><h3 class="fare-title">Solicitações de corrida</h3><p class="small">Pedidos de teste compatíveis com seu veículo aparecem aqui. Toque em aceitar ou recusar.</p><div id="driverRideRequests" class="requests-list"></div><div class="note">Com conexão online configurada, os pedidos são sincronizados entre celulares. Sem ela, o painel funciona apenas neste aparelho.</div><button class="secondaryAction" onclick="openScreen('welcome')">Sair para a tela inicial</button></section>
+<section id="cloudSetup" class="screen"><button class="back" onclick="openScreen('welcome')">← Voltar ao início</button><div class="eyebrow">Conexão online</div><h2 class="section">Conectar passageiros e motoristas</h2><p class="sub">Esta configuração usa Supabase gratuito como banco compartilhado, sem Firebase. Você precisa criar um projeto e colar aqui a URL e a chave pública (anon key) do projeto.</p><label class="field"><span>SUPABASE PROJECT URL</span><input id="cloudUrl" placeholder="https://seuprojeto.supabase.co" autocapitalize="off"></label><label class="field"><span>SUPABASE ANON / PUBLISHABLE KEY</span><input id="cloudKey" placeholder="Chave pública do projeto" autocapitalize="off"></label><button class="action" onclick="saveCloudConfig()">Salvar conexão neste aparelho</button><button class="secondaryAction" onclick="testCloudConnection()">Testar conexão</button><div id="cloudStatus" class="status"></div><div class="onlineCard"><h3 style="margin-top:0">Configuração necessária no Supabase</h3><p class="small">No painel SQL do seu projeto, execute o SQL abaixo para criar a tabela de pedidos. Este é um protótipo de testes; as políticas abertas não são seguras para lançar ao público sem autenticação e regras adicionais.</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere;color:#d9f7b0;background:#080808;border-radius:12px;padding:12px;font-size:11px">create table if not exists public.rides (
+  id text primary key,
+  created_at timestamptz not null default now(),
+  category text,
+  category_label text,
+  vehicle_type text,
+  origin text,
+  destination text,
+  distance_km numeric,
+  duration_mins numeric,
+  fare numeric,
+  status text not null default 'pending',
+  updated_at timestamptz
+);
+
+alter table public.rides add column if not exists id text;
+alter table public.rides add column if not exists created_at timestamptz not null default now();
+alter table public.rides add column if not exists category text;
+alter table public.rides add column if not exists category_label text;
+alter table public.rides add column if not exists vehicle_type text;
+alter table public.rides add column if not exists origin text;
+alter table public.rides add column if not exists destination text;
+alter table public.rides add column if not exists distance_km numeric;
+alter table public.rides add column if not exists duration_mins numeric;
+alter table public.rides add column if not exists fare numeric;
+alter table public.rides add column if not exists status text default 'pending';
+alter table public.rides add column if not exists updated_at timestamptz;
+
+alter table public.rides enable row level security;
+drop policy if exists "rides_test_access" on public.rides;
+create policy "rides_test_access" on public.rides
+  for all to anon using (true) with check (true);
+
+grant select, insert, update, delete on public.rides to anon, authenticated;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.rides;
+exception
+  when duplicate_object then null;
+end $$;
+
+notify pgrst, 'reload schema';</pre><button class="secondaryAction" onclick="copySetupSql()">Copiar SQL de configuração</button></div><div class="note">Não coloque aqui a chave secreta/service_role. Use somente a chave pública anon/publishable. Enquanto não configurar o Supabase, o app continua em modo local de demonstração.</div></section>
+<footer class="bottom">AMAZONDRIVE · MOBILIDADE EM MANAUS</footer></main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
+let map=null,step=0,originMarker=null,destMarker=null,routeLayer=null,isOnline=false,lastRouteKm=null,lastRouteMins=null,selectedFare='economy';
+let cloudClient=null,cloudChannel=null,cloudSyncBusy=false;
+const fareTypes={economy:{label:'Amazon Econômico',factor:1,base:5,perKm:2.2,min:7},comfort:{label:'Amazon Conforto',factor:1.45,base:7,perKm:2.9,min:10},moto:{label:'Amazon Moto',factor:0.72,base:3.5,perKm:1.55,min:5}};
+function fareFor(type,km){const f=fareTypes[type];return Math.max(f.min,f.base+km*f.perKm)}
+function money(v){return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function updateFareOptions(){if(lastRouteKm===null)return;document.getElementById('priceEconomy').innerHTML=money(fareFor('economy',lastRouteKm))+'<small>estimativa</small>';document.getElementById('priceComfort').innerHTML=money(fareFor('comfort',lastRouteKm))+'<small>estimativa</small>';document.getElementById('priceMoto').innerHTML=money(fareFor('moto',lastRouteKm))+'<small>estimativa</small>'}
+function selectFare(type){if(!fareTypes[type])return;selectedFare=type;document.querySelectorAll('.fare-option').forEach(el=>el.classList.toggle('selected',el.dataset.fare===type));}
+let searchTimers={origin:null,destination:null};
+let lastSearchAt=0;
+const placeCache={origin:[],destination:[]};
+function makePin(color,emoji){
+  return L.divIcon({className:'ad-pin-wrap',html:'<div style="width:34px;height:34px;border-radius:50% 50% 50% 8px;transform:rotate(-45deg);background:'+color+';border:3px solid white;box-shadow:0 3px 10px #17212b55;display:flex;align-items:center;justify-content:center;color:white;font-size:16px"><span style="transform:rotate(45deg)">'+emoji+'</span></div>',iconSize:[34,34],iconAnchor:[17,32],popupAnchor:[0,-30]});
+}
+
+function openScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+  if(id==='passenger')setTimeout(()=>{initMap();if(map)map.invalidateSize();},300);
+}
+function getDemoUsers(){try{const raw=localStorage.getItem('amazonDriveDemoUsers');const users=raw?JSON.parse(raw):[];return Array.isArray(users)?users:[]}catch(e){return []}}
+function normalizeIdentity(v){return String(v||'').trim().toLowerCase().replace(/[^a-z0-9@]/g,'')}
+function normalizePhone(v){let d=String(v||'').replace(/\D/g,'');if(d.startsWith('55')&&d.length>=12)d=d.slice(2);return d}
+function loginDemo(event){
+  event.preventDefault();
+  const typed=document.getElementById('loginIdentity').value.trim();
+  const identity=normalizeIdentity(typed);
+  const phone=normalizePhone(typed);
+  const password=document.getElementById('loginPassword').value;
+  const users=getDemoUsers();
+  const user=users.find(u=>{const savedEmail=normalizeIdentity(u.email);const savedPhone=normalizePhone(u.phone);return ((identity && savedEmail && savedEmail===identity) || (phone.length>=10 && savedPhone===phone) || (phone.length>=10 && savedPhone.slice(-11)===phone.slice(-11))) && u.password===password});
+  if(!user){show('loginStatus',users.length?'Não encontramos uma conta com esses dados. Confira o mesmo celular/e-mail e a senha usados no cadastro. Se você baixou outra cópia do arquivo ou mudou de navegador, cadastre novamente nesta cópia.':'Nenhuma conta foi encontrada neste navegador. Toque em Criar conta e cadastre seus dados neste mesmo arquivo e navegador.');return}
+  try{localStorage.setItem('amazonDriveCurrentUser',JSON.stringify({name:user.name,phone:user.phone,email:user.email||''}))}catch(e){}
+  show('loginStatus','Login realizado! Olá, '+user.name+'. Abrindo o aplicativo…');
+  setTimeout(()=>openScreen('passenger'),700);
+}
+function initMap(){
+  if(map){map.invalidateSize();return}
+  if(!window.L){show('rideStatus','O mapa não carregou. Verifique a internet.');return}
+  map=L.map('map').setView([-3.119,-60.0217],13);
+  const maptilerKey = 'FSk1GayE4MjVGUn0KU0Y';
+  const darkTiles = L.tileLayer(
+    'https://api.maptiler.com/maps/streets-v2-light/{z}/{x}/{y}.png?key=' + encodeURIComponent(maptilerKey),
+    {
+      maxZoom: 20,
+      attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }
+  );
+  const fallbackTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  });
+  darkTiles.addTo(map);
+  darkTiles.on('tileerror', function() {
+    if (!map.hasLayer(fallbackTiles)) {
+      map.removeLayer(darkTiles);
+      fallbackTiles.addTo(map);
+    }
+  });
+  map.on('click',e=>{
+    const ll=e.latlng;
+    const c=ll.lat.toFixed(6)+', '+ll.lng.toFixed(6);
+    if(step===0){
+      if(originMarker)map.removeLayer(originMarker);
+      originMarker=L.marker(ll,{icon:makePin('#21A366','●')}).addTo(map).bindPopup('Partida selecionada').openPopup();
+      document.getElementById('origin').value=c;
+      hideSuggestions('originSuggestions');step=1;
+    }else{
+      if(destMarker)map.removeLayer(destMarker);
+      destMarker=L.marker(ll,{icon:makePin('#F28C28','◆')}).addTo(map).bindPopup('Destino selecionado').openPopup();
+      document.getElementById('destination').value=c;
+      hideSuggestions('destinationSuggestions');step=0;
+    }
+    calculateRoute();
+  });
+}
+async function calculateRoute(){
+  const info=document.getElementById('routeInfo');
+  if(!originMarker || !destMarker){
+    if(routeLayer && map){map.removeLayer(routeLayer);routeLayer=null;}
+    info.classList.remove('show');info.textContent='';
+    return;
+  }
+  const a=originMarker.getLatLng(), b=destMarker.getLatLng();
+  info.innerHTML='Calculando rota…';info.classList.add('show');
+  try{
+    // OSRM demo router: calcula uma rota rodoviária entre os dois pontos.
+    const url='https://router.project-osrm.org/route/v1/driving/'+
+      a.lng+','+a.lat+';'+b.lng+','+b.lat+'?overview=full&geometries=geojson&steps=false';
+    const response=await fetch(url);
+    if(!response.ok)throw new Error('Rota indisponível');
+    const data=await response.json();
+    if(data.code!=='Ok'||!data.routes||!data.routes.length)throw new Error('Rota não encontrada');
+    const r=data.routes[0];
+    if(routeLayer)map.removeLayer(routeLayer);
+    const outline=L.geoJSON(r.geometry,{style:{color:'#ffffff',weight:9,opacity:1,lineCap:'round',lineJoin:'round'}});
+    const glow=L.geoJSON(r.geometry,{style:{color:'#1677FF',weight:5,opacity:1,lineCap:'round',lineJoin:'round'}});
+    // Mantém as duas camadas juntas para substituir a rota sem deixar linhas antigas.
+    routeLayer=L.layerGroup([outline,glow]).addTo(map);
+    const kmNumber=r.distance/1000;
+    const km=kmNumber.toLocaleString('pt-BR',{maximumFractionDigits:1});
+    const mins=Math.max(1,Math.round(r.duration/60));
+    lastRouteKm=kmNumber;lastRouteMins=mins;updateFareOptions();
+    const fare= fareFor('economy',kmNumber);
+    info.innerHTML='<strong>'+km+' km · '+mins+' min</strong><br>Estimativa ilustrativa: <strong>R$ '+fare.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</strong><br>Sem trânsito ao vivo';
+    map.fitBounds(L.latLngBounds(a,b),{padding:[45,45],maxZoom:16});
+  }catch(err){
+    info.textContent='Não consegui calcular a rota agora. Os pontos continuam marcados no mapa.';
+    info.classList.add('show');
+  }
+}
+function show(id,msg){
+  const s=document.getElementById(id);
+  s.textContent=msg;s.classList.add('show');
+}
+function hideSuggestions(id){
+  const el=document.getElementById(id);
+  if(el){el.classList.remove('show');el.replaceChildren();}
+}
+function escapeHtml(value){
+  return String(value||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function formatPlace(p){
+  const a=p.address||{};
+  const road=a.road||a.pedestrian||a.footway||a.residential||a.neighbourhood||'';
+  const bairro=a.suburb||a.neighbourhood||a.quarter||a.city_district||a.village||'';
+  const cidade=a.city||a.town||a.municipality||a.county||'';
+  const state=a.state||'';
+  const cep=a.postcode||'';
+  const main=[road,a.house_number].filter(Boolean).join(', ')||p.name||p.display_name.split(',')[0];
+  const detail=[bairro,cidade,state].filter((v,i,arr)=>v && arr.indexOf(v)===i).join(' · ');
+  return {main,detail,cep,full:p.display_name};
+}
+function renderSuggestions(kind,places){
+  const box=document.getElementById(kind+'Suggestions');
+  box.replaceChildren();
+  placeCache[kind]=places;
+  if(!places.length){
+    box.innerHTML='<div class="suggestion" style="color:#aaa">Nenhum endereço encontrado. Tente incluir o bairro ou o CEP.</div>';
+    box.classList.add('show');return;
+  }
+  places.forEach((p,index)=>{
+    const f=formatPlace(p);
+    const btn=document.createElement('button');
+    btn.type='button';btn.className='suggestion';
+    btn.innerHTML='<strong>'+escapeHtml(f.main)+'</strong>'+
+      (f.detail?'<small>'+escapeHtml(f.detail)+'</small>':'')+
+      (f.cep?'<small class="cep">CEP: '+escapeHtml(f.cep)+'</small>':'<small>CEP não informado no cadastro</small>');
+    btn.addEventListener('click',()=>selectPlace(kind,index));
+    box.appendChild(btn);
+  });
+  box.classList.add('show');
+}
+async function searchPlaces(kind,query){
+  const boxId=kind+'Suggestions';
+  if(query.length<3){hideSuggestions(boxId);return;}
+  const box=document.getElementById(boxId);
+  box.innerHTML='<div class="suggestion" style="color:#aaa">Buscando ruas, bairros e CEPs…</div>';
+  box.classList.add('show');
+  try{
+    // Nominatim/OpenStreetMap: consultas com pausa para reduzir requisições.
+    const now=Date.now();
+    const wait=Math.max(0,1100-(now-lastSearchAt));
+    if(wait) await new Promise(resolve=>setTimeout(resolve,wait));
+    lastSearchAt=Date.now();
+    const url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=br&q='+encodeURIComponent(query+', Manaus, Amazonas, Brasil');
+    const response=await fetch(url,{headers:{'Accept-Language':'pt-BR'}});
+    if(!response.ok)throw new Error('Busca indisponível');
+    const results=await response.json();
+    // Ignore late responses if the user has already changed the query.
+    if(document.getElementById(kind).value.trim()!==query)return;
+    renderSuggestions(kind,results);
+  }catch(err){
+    if(document.getElementById(kind).value.trim()!==query)return;
+    box.innerHTML='<div class="suggestion" style="color:#aaa">Não foi possível buscar agora. Confira a internet e tente novamente.</div>';
+    box.classList.add('show');
+  }
+}
+function selectPlace(kind,index){
+  const p=placeCache[kind][index];if(!p)return;
+  const f=formatPlace(p);
+  const ll=[Number(p.lat),Number(p.lon)];
+  const input=document.getElementById(kind);
+  input.value=f.full;
+  hideSuggestions(kind+'Suggestions');
+  initMap();
+  map.setView(ll,17,{animate:true});
+  if(kind==='origin'){
+    if(originMarker)map.removeLayer(originMarker);
+    originMarker=L.marker(ll,{icon:makePin('#21A366','●')}).addTo(map).bindPopup('Partida: '+escapeHtml(f.main)).openPopup();
+    step=1;
+  }else{
+    if(destMarker)map.removeLayer(destMarker);
+    destMarker=L.marker(ll,{icon:makePin('#F28C28','◆')}).addTo(map).bindPopup('Destino: '+escapeHtml(f.main)).openPopup();
+    step=0;
+  }
+  calculateRoute();
+}
+function setupAutocomplete(kind){
+  const input=document.getElementById(kind);
+  input.addEventListener('input',()=>{
+    clearTimeout(searchTimers[kind]);
+    const query=input.value.trim();
+    searchTimers[kind]=setTimeout(()=>searchPlaces(kind,query),850);
+  });
+  input.addEventListener('focus',()=>{
+    if(input.value.trim().length>=3 && placeCache[kind].length){
+      document.getElementById(kind+'Suggestions').classList.add('show');
+    }
+  });
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Escape')hideSuggestions(kind+'Suggestions');
+    if(e.key==='Enter'){
+      const first=placeCache[kind][0];
+      if(first){e.preventDefault();selectPlace(kind,0);}
+    }
+  });
+  document.addEventListener('click',e=>{
+    if(!input.contains(e.target) && !document.getElementById(kind+'Suggestions').contains(e.target)){
+      hideSuggestions(kind+'Suggestions');
+    }
+  });
+}
+function locateMe(){
+  if(!navigator.geolocation){show('rideStatus','Este navegador não disponibiliza localização.');return}
+  show('rideStatus','Solicitando permissão…');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const ll=[pos.coords.latitude,pos.coords.longitude];
+    initMap();map.setView(ll,16);
+    if(originMarker)map.removeLayer(originMarker);
+    originMarker=L.marker(ll,{icon:makePin('#21A366','●')}).addTo(map).bindPopup('Sua localização aproximada').openPopup();
+    document.getElementById('origin').value=ll[0].toFixed(6)+', '+ll[1].toFixed(6);
+    hideSuggestions('originSuggestions');step=1;show('rideStatus','Localização preenchida.');calculateRoute();
+  },()=>show('rideStatus','Não foi possível acessar a localização. Confira a permissão.'),{enableHighAccuracy:true,timeout:12000});
+}
+function requestRide(){
+  const a=document.getElementById('origin').value.trim(),b=document.getElementById('destination').value.trim();
+  if(!a||!b){show('rideStatus','Preencha partida e destino ou toque no mapa.');return}
+  if(!originMarker||!destMarker){show('rideStatus','Selecione a partida e o destino nas sugestões para calcular a rota e estimar o valor.');return}
+  const km=lastRouteKm;
+  if(km===null){show('rideStatus','Aguardando o cálculo da rota. Tente novamente em alguns segundos.');return}
+  const fare=fareFor(selectedFare,km);
+  document.getElementById('confirmFareName').textContent=fareTypes[selectedFare].label;
+  document.getElementById('confirmFarePrice').textContent=money(fare);
+  document.getElementById('confirmOrigin').textContent=a;
+  document.getElementById('confirmDestination').textContent=b;
+  document.getElementById('confirmDistance').textContent=km.toLocaleString('pt-BR',{maximumFractionDigits:1})+' km';
+  document.getElementById('confirmDuration').textContent=(lastRouteMins===null?'—':Math.round(lastRouteMins))+' min';
+  document.getElementById('confirmVehicleIcon').textContent=selectedFare==='moto'?'🏍️':(selectedFare==='comfort'?'🚘':'🚗');
+  document.getElementById('confirmFareDesc').textContent=selectedFare==='moto'?'Opção ágil para trajetos curtos':(selectedFare==='comfort'?'Mais conforto na viagem':'Uma opção prática para o dia a dia');
+  openScreen('rideConfirm');
+}
+function getRideRequests(){try{const x=JSON.parse(localStorage.getItem('amazonDriveRideRequests')||'[]');return Array.isArray(x)?x:[]}catch(e){return []}}
+function saveRideRequests(list){try{localStorage.setItem('amazonDriveRideRequests',JSON.stringify(list));return true}catch(e){return false}}
+async function confirmRideDemo(){
+  const fare=fareFor(selectedFare,lastRouteKm||0);
+  const req={id:'AD'+Date.now().toString(36).toUpperCase(),createdAt:new Date().toISOString(),category:selectedFare,categoryLabel:fareTypes[selectedFare].label,vehicleType:selectedFare==='moto'?'Moto':'Carro',origin:document.getElementById('confirmOrigin').textContent,destination:document.getElementById('confirmDestination').textContent,distanceKm:lastRouteKm||0,durationMins:lastRouteMins||0,fare,status:'pending'};
+  if(cloudClient){
+    try{const row=toCloudRide(req);const {error}=await cloudClient.from('rides').insert(row);if(error)throw error;show('confirmRideStatus','Pedido enviado pela internet!\n'+req.categoryLabel+' · '+money(fare)+'\nCódigo: '+req.id+'\nAgora o motorista conectado pode receber esta solicitação.');await syncCloudRides();return}
+    catch(e){console.error(e);show('confirmRideStatus','Não consegui enviar pela internet: '+(e.message||'verifique a configuração Supabase')+'\nO pedido será guardado apenas neste aparelho.');}
+  }
+  const requests=getRideRequests();requests.unshift(req);if(!saveRideRequests(requests)){show('confirmRideStatus','Não foi possível guardar o pedido neste navegador.');return}renderRideRequests();
+  show('confirmRideStatus','Pedido de demonstração criado neste aparelho. Para enviar para outro celular, configure a conexão em “Conectar celulares”. Código: '+req.id);
+}
+function toCloudRide(r){return {id:r.id,created_at:r.createdAt||new Date().toISOString(),category:r.category||'',category_label:r.categoryLabel||'',vehicle_type:r.vehicleType||'Carro',origin:r.origin||'',destination:r.destination||'',distance_km:Number(r.distanceKm)||0,duration_mins:Number(r.durationMins)||0,fare:Number(r.fare)||0,status:r.status||'pending',updated_at:r.updatedAt||null}}
+function fromCloudRide(r){return {id:r.id,createdAt:r.created_at,category:r.category,categoryLabel:r.category_label,vehicleType:r.vehicle_type,origin:r.origin,destination:r.destination,distanceKm:Number(r.distance_km)||0,durationMins:Number(r.duration_mins)||0,fare:Number(r.fare)||0,status:r.status||'pending',updatedAt:r.updated_at}}
+function renderRideRequests(){
+  const el=document.getElementById('driverRideRequests');if(!el)return;
+  if(cloudClient){syncCloudRides().catch(e=>console.warn('Supabase sync:',e));return}
+  const profile=(()=>{try{return JSON.parse(localStorage.getItem('amazonDriveDriverProfile')||'null')}catch(e){return null}})();
+  const requests=getRideRequests().filter(r=>!profile||r.vehicleType===profile.vehicleType);
+  if(!requests.length){el.innerHTML='<div class="request-muted">📭 Nenhuma solicitação compatível no momento. Crie um pedido na área do passageiro para testar.</div>';return}
+  el.innerHTML=requests.map(r=>{
+    const label=r.status==='accepted'?'ACEITA':r.status==='declined'?'RECUSADA':r.status==='completed'?'FINALIZADA':'AGUARDANDO';
+    const actions=r.status==='pending'?`<div class="request-actions"><button class="action" type="button" onclick="updateRideRequest('${r.id}','accepted')">✓ Aceitar corrida</button><button class="secondaryAction" type="button" onclick="updateRideRequest('${r.id}','declined')">Recusar</button></div>`:r.status==='accepted'?`<div class="request-actions"><button class="action" type="button" onclick="updateRideRequest('${r.id}','completed')">Finalizar corrida</button></div>`:'';
+    return `<article class="request-card"><div class="request-top"><strong>${r.vehicleType==='Moto'?'🏍️':'🚘'} ${escapeRideText(r.categoryLabel)}</strong><span class="request-status">${label}</span></div><div class="request-route"><div><span class="small">📍 EMBARQUE</span><strong>${escapeRideText(r.origin)}</strong></div><div><span class="small">🏁 DESTINO</span><strong>${escapeRideText(r.destination)}</strong></div></div><div style="display:flex;justify-content:space-between;gap:8px;margin:8px 0"><span class="small">${Number(r.distanceKm).toLocaleString('pt-BR',{maximumFractionDigits:1})} km · ${Math.round(r.durationMins)} min</span><strong>${money(Number(r.fare)||0)}</strong></div><div class="small">Comissão estimada (10%): ${money((Number(r.fare)||0)*.1)} · Motorista: ${money((Number(r.fare)||0)*.9)}</div>${actions}</article>`;
+  }).join('');
+}
+function escapeRideText(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function updateRideRequest(id,status){
+  if(cloudClient){
+    try{
+      if(status==='accepted'){
+        const {data:active,error:activeErr}=await cloudClient.from('rides').select('id').eq('status','accepted').limit(1);if(activeErr)throw activeErr;
+        if(active&&active.length){show('dashDriverStatus','Você já aceitou uma corrida. Finalize-a antes de aceitar outra.');return}
+      }
+      const {error}=await cloudClient.from('rides').update({status,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error;
+      await syncCloudRides();const messages={accepted:'Corrida aceita e atualizada pela internet.',declined:'Você recusou esta solicitação.',completed:'Corrida finalizada. Comissão de 10% exibida apenas como estimativa.'};show('dashDriverStatus',messages[status]||'Pedido atualizado.');return;
+    }catch(e){show('dashDriverStatus','Falha ao atualizar online: '+(e.message||'verifique a conexão'));return}
+  }
+  const requests=getRideRequests();const item=requests.find(r=>r.id===id);if(!item)return;
+  if(status==='accepted'&&requests.some(r=>r.status==='accepted')){show('dashDriverStatus','Você já aceitou uma corrida. Finalize-a antes de aceitar outra.');return}
+  item.status=status;item.updatedAt=new Date().toISOString();if(!saveRideRequests(requests)){show('dashDriverStatus','Não foi possível atualizar o pedido.');return}renderRideRequests();
+  const messages={accepted:'Corrida aceita neste aparelho! Para sincronizar com o passageiro, configure a conexão online.',declined:'Você recusou esta solicitação.',completed:'Corrida marcada como finalizada. A comissão é uma simulação.'};show('dashDriverStatus',messages[status]||'Pedido atualizado.');
+}
+
+function registerUser(event){
+  event.preventDefault();
+  const name=document.getElementById('userName').value.trim();
+  const phone=document.getElementById('userPhone').value.trim();
+  const email=document.getElementById('userEmail').value.trim();
+  const password=document.getElementById('userPassword').value;
+  if(!document.getElementById('userTerms').checked){show('registerStatus','Marque a confirmação para continuar.');return}
+  let users=getDemoUsers();
+  const duplicate=users.some(u=>normalizeIdentity(u.phone)===normalizeIdentity(phone)||(email&&normalizeIdentity(u.email)===normalizeIdentity(email)));
+  if(duplicate){show('registerStatus','Já existe um perfil com esse celular ou e-mail neste aparelho. Volte para Entrar.');return}
+  users.push({name,phone,email,password,createdAt:new Date().toISOString()});
+  try{localStorage.setItem('amazonDriveDemoUsers',JSON.stringify(users));localStorage.setItem('amazonDriveCurrentUser',JSON.stringify({name,phone,email}));}
+  catch(e){show('registerStatus','Não foi possível salvar neste navegador. Verifique o espaço disponível e tente novamente.');return}
+  document.getElementById('loginIdentity').value=phone;
+  document.getElementById('loginPassword').value='';
+  show('registerStatus','Conta de demonstração criada com sucesso, '+name+'! Você já pode entrar com seu celular ou e-mail e a senha cadastrada.');
+  setTimeout(()=>openScreen('passenger'),900);
+}
+function saveDriverProfile(){
+  const profile={name:document.getElementById('driverName').value.trim(),phone:document.getElementById('driverPhone').value.trim(),vehicleType:document.getElementById('driverVehicleType').value,vehicle:document.getElementById('vehicle').value.trim(),plate:document.getElementById('driverPlate').value.trim().toUpperCase(),color:document.getElementById('driverColor').value.trim()};
+  if(!profile.name||!profile.phone||!profile.vehicle){show('driverStatus','Preencha nome, telefone e modelo do veículo para salvar.');return false}
+  try{localStorage.setItem('amazonDriveDriverProfile',JSON.stringify(profile));renderDriverDashboard(profile);openScreen('driverDashboard');return true}catch(e){show('driverStatus','Não foi possível salvar neste navegador. Confira as permissões e tente novamente.');return false}
+}
+function renderDriverDashboard(profile){
+  let p=profile; if(!p){try{p=JSON.parse(localStorage.getItem('amazonDriveDriverProfile')||'null')}catch(e){p=null}}
+  if(!p)return;
+  document.getElementById('dashDriverName').textContent=p.name||'motorista';
+  document.getElementById('dashVehicle').textContent=(p.vehicleType==='Moto'?'🏍️ ':'🚘 ')+(p.vehicle||'Seu veículo');
+  document.getElementById('dashVehicleDetails').textContent=[p.color,p.plate?'Placa '+p.plate:''].filter(Boolean).join(' · ')||'Veículo cadastrado';
+  updateDriverOnlineUI();
+  renderRideRequests();
+}
+function updateDriverOnlineUI(){
+  const dot=document.getElementById('dashOnlineDot'),title=document.getElementById('dashOnlineTitle'),btn=document.getElementById('dashOnlineBtn');if(!dot||!title||!btn)return;
+  dot.classList.toggle('on',isOnline);title.textContent=isOnline?'Você está online (demonstração)':'Você está offline';btn.textContent=isOnline?'Ficar offline':'Ficar online';btn.style.background=isOnline?'#242424':'var(--lime)';btn.style.color=isOnline?'white':'#080808';
+}
+function getCloudConfig(){try{return JSON.parse(localStorage.getItem('amazonDriveCloudConfig')||'null')}catch(e){return null}}
+function saveCloudConfig(){const url=document.getElementById('cloudUrl').value.trim().replace(/\/$/,'');const key=document.getElementById('cloudKey').value.trim();if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)||!key){show('cloudStatus','Confira a URL do projeto e a chave pública anon/publishable.');return}try{localStorage.setItem('amazonDriveCloudConfig',JSON.stringify({url,key}));initCloudClient();show('cloudStatus','Configuração salva neste aparelho. Faça o mesmo nos outros celulares e toque em Testar conexão.')}catch(e){show('cloudStatus','Não foi possível salvar a configuração neste navegador.')}}
+function initCloudClient(){const cfg=getCloudConfig();if(!cfg||!window.supabase||!window.supabase.createClient){cloudClient=null;return false}try{cloudClient=window.supabase.createClient(cfg.url,cfg.key);return true}catch(e){cloudClient=null;return false}}
+async function testCloudConnection(){if(!initCloudClient()){show('cloudStatus','Preencha URL e chave pública e salve a configuração primeiro.');return}show('cloudStatus','Testando conexão…');try{const {error}=await cloudClient.from('rides').select('id').limit(1);if(error)throw error;show('cloudStatus','Conexão OK! A tabela rides foi encontrada. Configure a mesma URL e chave nos dois celulares.');startCloudRealtime()}catch(e){show('cloudStatus','Não conectou: '+(e.message||'verifique se a tabela e as políticas SQL foram criadas.'))}}
+function updatePassengerRideStatus(rides){
+  let activeId='';try{activeId=localStorage.getItem('amazonDriveActiveRideId')||''}catch(e){}
+  if(!activeId)return;
+  const ride=rides.find(r=>String(r.id)===activeId);if(!ride)return;
+  const messages={pending:'Pedido enviado pela internet!\\nAguardando um motorista aceitar. Código: '+ride.id,accepted:'🎉 Um motorista aceitou sua corrida!\\n'+ride.categoryLabel+' · '+money(Number(ride.fare)||0),declined:'O motorista recusou esta solicitação. Você pode pedir outra corrida.',completed:'Corrida finalizada. Obrigado por usar o AmazonDrive!',cancelled:'Esta corrida foi cancelada.'};
+  const el=document.getElementById('confirmRideStatus');
+  if(el){el.textContent=messages[ride.status]||('Status da corrida: '+ride.status);el.classList.add('show')}
+}
+async function syncCloudRides(){if(!cloudClient||cloudSyncBusy)return;cloudSyncBusy=true;try{const {data,error}=await cloudClient.from('rides').select('*').order('created_at',{ascending:false}).limit(50);if(error)throw error;const cloud=(data||[]).map(fromCloudRide);updatePassengerRideStatus(cloud);const local=getRideRequests();const merged=new Map(local.map(r=>[r.id,r]));cloud.forEach(r=>merged.set(r.id,r));saveRideRequests(Array.from(merged.values()).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,100));const el=document.getElementById('driverRideRequests');if(el){const profile=(()=>{try{return JSON.parse(localStorage.getItem('amazonDriveDriverProfile')||'null')}catch(e){return null}})();const visible=cloud.filter(r=>!profile||r.vehicleType===profile.vehicleType);renderRideCards(visible)} }finally{cloudSyncBusy=false}}
+function startCloudRealtime(){if(!cloudClient||cloudChannel)return;cloudChannel=cloudClient.channel('amazon-drive-rides-live').on('postgres_changes',{event:'*',schema:'public',table:'rides'},()=>{syncCloudRides().catch(e=>console.warn(e))}).subscribe((status)=>{if(status==='SUBSCRIBED')console.log('AmazonDrive realtime connected')})}
+function copySetupSql(){const sql=`create table if not exists public.rides (
+  id text primary key,
+  created_at timestamptz not null default now(),
+  category text,
+  category_label text,
+  vehicle_type text,
+  origin text,
+  destination text,
+  distance_km numeric,
+  duration_mins numeric,
+  fare numeric,
+  status text not null default 'pending',
+  updated_at timestamptz
+);
+alter table public.rides add column if not exists id text;
+alter table public.rides add column if not exists created_at timestamptz not null default now();
+alter table public.rides add column if not exists category text;
+alter table public.rides add column if not exists category_label text;
+alter table public.rides add column if not exists vehicle_type text;
+alter table public.rides add column if not exists origin text;
+alter table public.rides add column if not exists destination text;
+alter table public.rides add column if not exists distance_km numeric;
+alter table public.rides add column if not exists duration_mins numeric;
+alter table public.rides add column if not exists fare numeric;
+alter table public.rides add column if not exists status text default 'pending';
+alter table public.rides add column if not exists updated_at timestamptz;
+alter table public.rides enable row level security;
+drop policy if exists "rides_test_access" on public.rides;
+create policy "rides_test_access" on public.rides for all to anon using (true) with check (true);
+grant select, insert, update, delete on public.rides to anon, authenticated;
+do $$ begin alter publication supabase_realtime add table public.rides; exception when duplicate_object then null; end $$;
+notify pgrst, 'reload schema';`;if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(sql).then(()=>show('cloudStatus','SQL copiado.')).catch(()=>show('cloudStatus','Selecione e copie o SQL exibido acima.'))}else{show('cloudStatus','Selecione e copie o SQL exibido acima.')}}
+function renderRideCards(requests){const el=document.getElementById('driverRideRequests');if(!el)return;if(!requests.length){el.innerHTML='<div class="request-muted">📭 Nenhuma solicitação compatível no momento. Quando um passageiro conectado pedir uma corrida, ela aparecerá aqui.</div>';return}el.innerHTML=requests.map(r=>{const label=r.status==='accepted'?'ACEITA':r.status==='declined'?'RECUSADA':r.status==='completed'?'FINALIZADA':'AGUARDANDO';const actions=r.status==='pending'?`<div class="request-actions"><button class="action" type="button" onclick="updateRideRequest('${r.id}','accepted')">✓ Aceitar corrida</button><button class="secondaryAction" type="button" onclick="updateRideRequest('${r.id}','declined')">Recusar</button></div>`:r.status==='accepted'?`<div class="request-actions"><button class="action" type="button" onclick="updateRideRequest('${r.id}','completed')">Finalizar corrida</button></div>`:'';return `<article class="request-card"><div class="request-top"><strong>${r.vehicleType==='Moto'?'🏍️':'🚘'} ${escapeRideText(r.categoryLabel)}</strong><span class="request-status">${label}</span></div><div class="request-route"><div><span class="small">📍 EMBARQUE</span><strong>${escapeRideText(r.origin)}</strong></div><div><span class="small">🏁 DESTINO</span><strong>${escapeRideText(r.destination)}</strong></div></div><div style="display:flex;justify-content:space-between;gap:8px;margin:8px 0"><span class="small">${Number(r.distanceKm).toLocaleString('pt-BR',{maximumFractionDigits:1})} km · ${Math.round(r.durationMins)} min</span><strong>${money(Number(r.fare)||0)}</strong></div><div class="small">Comissão estimada (10%): ${money((Number(r.fare)||0)*.1)} · Motorista: ${money((Number(r.fare)||0)*.9)}</div>${actions}</article>`}).join('')}
+function loadDriverProfile(){
+  try{const p=JSON.parse(localStorage.getItem('amazonDriveDriverProfile')||'null');if(!p)return;document.getElementById('driverName').value=p.name||'';document.getElementById('driverPhone').value=p.phone||'';document.getElementById('driverVehicleType').value=p.vehicleType||'Carro';document.getElementById('vehicle').value=p.vehicle||'';document.getElementById('driverPlate').value=p.plate||'';document.getElementById('driverColor').value=p.color||'';}catch(e){}
+}
+function calculateCommission(){
+  const input=document.getElementById('commissionFare');
+  const amount=Math.max(0,Number(input&&input.value)||0);
+  document.getElementById('commissionApp').textContent=money(amount*0.10);
+  document.getElementById('commissionDriver').textContent=money(amount*0.90);
+}
+function toggleOnline(){
+  let profile=null;try{profile=JSON.parse(localStorage.getItem('amazonDriveDriverProfile')||'null')}catch(e){}
+  if(!isOnline&&!profile){show('dashDriverStatus','Salve seu cadastro antes de ficar online.');return}
+  isOnline=!isOnline;updateDriverOnlineUI();
+  if(isOnline&&cloudClient){startCloudRealtime();syncCloudRides().catch(e=>show('dashDriverStatus','Conexão online falhou: '+(e.message||'verifique a configuração')))}
+  renderRideRequests();
+  show('dashDriverStatus',isOnline?(cloudClient?'Você está online e conectado para receber pedidos compartilhados.':'Você está online apenas neste aparelho. Configure “Conectar celulares” para receber corridas de outros celulares.'):'Você ficou offline neste aparelho.');
+}
+
+const savedCloud=getCloudConfig();if(savedCloud){document.getElementById('cloudUrl').value=savedCloud.url||'';document.getElementById('cloudKey').value=savedCloud.key||'';initCloudClient();if(cloudClient)startCloudRealtime()}
+loadDriverProfile();
+renderDriverDashboard();
+renderRideRequests();
+setupAutocomplete('origin');
+setupAutocomplete('destination');
+calculateCommission();
+</script></body></html>
